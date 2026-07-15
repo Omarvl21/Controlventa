@@ -1,0 +1,439 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistema Pegaso - Punto de venta y notas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="pegaso.jpg" alt="Vestiduras Pegaso">
+        <div>
+          <h1>Vestiduras Pegaso</h1>
+          <span>Ventas, notas y caja</span>
+        </div>
+      </div>
+      <button class="nav-btn active" data-section="pos">Punto de venta</button>
+      <button class="nav-btn" data-section="registros">Registros</button>
+      <button class="nav-btn" data-section="clientes">Clientes</button>
+      <button class="nav-btn" data-section="proveedores">Proveedores</button>
+      <button class="nav-btn" data-section="manoObra">Mano de obra</button>
+      <button class="nav-btn" data-section="abonos">Abonos y saldos</button>
+      <button class="nav-btn" data-section="resultados">Estado de resultados</button>
+      <button class="nav-btn" data-section="herramientas">Herramientas</button>
+      <button class="nav-btn" data-section="configuracion">Configuracion</button>
+    </aside>
+
+    <main class="main">
+      <section id="pos" class="section active">
+        <div class="topbar">
+          <div>
+            <h2 id="formHeading">Nueva nota de venta</h2>
+            <p>Genera ventas, cotizaciones, parcialidades, PDF y mensajes de WhatsApp.</p>
+          </div>
+          <div class="text-end">
+            <div class="muted">Folio actual</div>
+            <strong id="folioActual" class="fs-4 text-warning"></strong>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label">Tipo de documento</label>
+              <select id="tipoDocumento" class="form-select">
+                <option value="VENTA">Nota de venta</option>
+                <option value="COTIZACION">Nota de cotizacion</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Fecha</label>
+              <input id="fechaDoc" type="date" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Cliente</label>
+              <select id="clienteSelect" class="form-select"></select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Acciones de cliente</label>
+              <button class="btn btn-outline-light w-100" id="btnClienteRapido">Agregar / editar cliente</button>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Nombre del cliente</label>
+              <input id="clienteNombre" class="form-control" placeholder="Consumidor final">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Telefono / WhatsApp</label>
+              <input id="clienteTelefono" class="form-control" placeholder="Ej. 2413271794">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">RFC</label>
+              <input id="clienteRfc" class="form-control" placeholder="Opcional">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Direccion</label>
+              <input id="clienteDireccion" class="form-control" placeholder="Opcional">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="panel-title mb-0">Productos y servicios</div>
+            <button class="btn btn-sm btn-gold" id="btnAgregarProducto">Agregar renglon</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle" id="tablaItems">
+              <thead>
+                <tr>
+                  <th>Descripcion</th>
+                  <th style="width:90px">Cant.</th>
+                  <th style="width:135px">Precio venta</th>
+                  <th style="width:135px">Fabricacion</th>
+                  <th style="width:130px">Importe</th>
+                  <th style="width:120px">Ganancia</th>
+                  <th style="width:60px"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Observaciones para la nota</label>
+              <textarea id="notasDoc" class="form-control" rows="2" placeholder="Tiempo de entrega, condiciones, medidas, detalles..."></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Frase de agradecimiento</label>
+              <textarea id="agradecimientoDoc" class="form-control" rows="2" placeholder="Gracias por su preferencia..."></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Condiciones / pie de nota</label>
+              <textarea id="condicionesDoc" class="form-control" rows="2" placeholder="Garantia, tiempos de entrega o indicaciones..."></textarea>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Envio / paqueteria</label>
+              <input id="envioDoc" type="text" inputmode="decimal" value="0" class="form-control money-input" placeholder="0.00">
+            </div>
+            <div class="col-md-3 internal">
+              <label class="form-label">Datos internos</label>
+              <div class="d-flex justify-content-between"><span>Costo:</span><strong>$<span id="totalCosto">0.00</span></strong></div>
+              <div class="d-flex justify-content-between"><span>Ganancia antes de mano de obra:</span><strong>$<span id="totalGananciaBruta">0.00</span></strong></div>
+              <div class="d-flex justify-content-between"><span>Mano de obra:</span><strong class="text-warning">$<span id="totalManoObra">0.00</span></strong></div>
+              <div class="d-flex justify-content-between"><span>Ganancia neta:</span><strong class="text-success">$<span id="totalGanancia">0.00</span></strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+            <div>
+              <div class="panel-title mb-0">Mano de obra (opcional)</div>
+              <div class="muted small">Asigna a las personas que participen en este pedido y el importe a pagarles.</div>
+            </div>
+            <button class="btn btn-sm btn-outline-warning" id="btnAgregarManoObra">Agregar persona</button>
+          </div>
+          <div id="sinManoObra" class="muted">Este pedido no requiere mano de obra registrada.</div>
+          <div class="table-responsive" id="contenedorManoObra">
+            <table class="table table-sm align-middle" id="tablaManoObra">
+              <thead><tr><th>Persona</th><th>Actividad / puesto</th><th>Pago acordado</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-lg-7">
+            <div class="panel">
+              <div class="panel-title">Formas de pago y parcialidades</div>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <input id="abonoMonto" type="text" inputmode="decimal" class="form-control money-input" placeholder="Monto del abono">
+                </div>
+                <div class="col-md-4">
+                  <select id="abonoMetodo" class="form-select">
+                    <option>Efectivo</option>
+                    <option>Transferencia</option>
+                    <option>Tarjeta</option>
+                    <option>Deposito</option>
+                    <option>Otro</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <button class="btn btn-success w-100" id="btnAgregarAbono">Agregar abono</button>
+                </div>
+              </div>
+              <div class="table-responsive mt-3">
+                <table class="table table-sm" id="tablaPagos">
+                  <thead><tr><th>Fecha</th><th>Metodo</th><th>Monto</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="panel">
+              <div class="panel-title">Totales</div>
+              <div class="d-flex justify-content-between fs-5"><span>Subtotal</span><strong>$<span id="subtotalDoc">0.00</span></strong></div>
+              <div class="d-flex justify-content-between"><span>Envio</span><strong>$<span id="envioTotal">0.00</span></strong></div>
+              <hr>
+              <div class="d-flex justify-content-between fs-4"><span>Total</span><strong class="text-warning">$<span id="totalDoc">0.00</span></strong></div>
+              <div class="d-flex justify-content-between"><span>Pagado</span><strong class="text-success">$<span id="pagadoDoc">0.00</span></strong></div>
+              <div class="d-flex justify-content-between"><span>Falta pagar</span><strong class="text-danger">$<span id="saldoDoc">0.00</span></strong></div>
+              <div class="mt-3 d-flex flex-wrap gap-2">
+                <button class="btn btn-gold" id="btnGuardar">Guardar</button>
+                <button class="btn btn-outline-light" id="btnPdf">Descargar PDF</button>
+                <button class="btn btn-outline-success" id="btnWhatsApp">WhatsApp</button>
+                <button class="btn btn-outline-info" id="btnNuevo">Nuevo</button>
+              </div>
+              <div id="editandoAviso" class="muted mt-2"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="registros" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Registros de venta y cotizacion</h2>
+            <p>Busca, edita, borra, convierte cotizaciones y reenvia comprobantes.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row g-2 mb-3">
+            <div class="col-md-4"><input id="buscarRegistros" class="form-control" placeholder="Buscar por folio, cliente o telefono"></div>
+            <div class="col-md-3">
+              <select id="filtroTipo" class="form-select">
+                <option value="">Todos</option>
+                <option value="VENTA">Ventas</option>
+                <option value="COTIZACION">Cotizaciones</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select id="filtroEstado" class="form-select">
+                <option value="">Todos los estados</option>
+                <option>PAGADO</option>
+                <option>PARCIAL</option>
+                <option>PENDIENTE</option>
+                <option>COTIZACION</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm" id="tablaRegistros">
+              <thead><tr><th>Folio</th><th>Tipo</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pagado</th><th>Saldo</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="clientes" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Clientes</h2>
+            <p>Alta, edicion, saldos y abonos por cada cliente.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row g-2">
+            <div class="col-md-3"><input id="clienteFormNombre" class="form-control" placeholder="Nombre"></div>
+            <div class="col-md-2"><input id="clienteFormTelefono" class="form-control" placeholder="WhatsApp"></div>
+            <div class="col-md-2"><input id="clienteFormRfc" class="form-control" placeholder="RFC"></div>
+            <div class="col-md-3"><input id="clienteFormDireccion" class="form-control" placeholder="Direccion"></div>
+            <div class="col-md-2"><button class="btn btn-gold w-100" id="btnGuardarCliente">Guardar cliente</button></div>
+          </div>
+          <input type="hidden" id="clienteEditId">
+        </div>
+        <div class="panel">
+          <div class="table-responsive">
+            <table class="table table-sm" id="tablaClientes">
+              <thead><tr><th>Cliente</th><th>Telefono</th><th>RFC</th><th>Ventas</th><th>Pagado</th><th>Saldo</th><th>Acciones</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="proveedores" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Proveedores</h2>
+            <p>Directorio simple para materiales, servicios y contactos.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row g-2">
+            <div class="col-md-3"><input id="provNombre" class="form-control" placeholder="Proveedor"></div>
+            <div class="col-md-2"><input id="provTelefono" class="form-control" placeholder="Telefono"></div>
+            <div class="col-md-3"><input id="provProducto" class="form-control" placeholder="Material / servicio"></div>
+            <div class="col-md-2"><input id="provNotas" class="form-control" placeholder="Notas"></div>
+            <div class="col-md-2"><button class="btn btn-gold w-100" id="btnGuardarProveedor">Guardar</button></div>
+          </div>
+          <input type="hidden" id="provEditId">
+        </div>
+        <div class="panel table-responsive">
+          <table class="table table-sm" id="tablaProveedores">
+            <thead><tr><th>Proveedor</th><th>Telefono</th><th>Material / servicio</th><th>Notas</th><th>Acciones</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="abonos" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Abonos y saldos</h2>
+            <p>Control de cuentas pendientes y parcialidades por cliente.</p>
+          </div>
+        </div>
+        <div class="panel table-responsive">
+          <table class="table table-sm" id="tablaSaldos">
+            <thead><tr><th>Cliente</th><th>Telefono</th><th>Total vendido</th><th>Total pagado</th><th>Falta pagar</th><th>Ventas pendientes</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="manoObra" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Personal y mano de obra</h2>
+            <p>Registra a las personas que trabajan con la empresa y su actividad principal.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row g-2">
+            <div class="col-md-4"><input id="trabajadorNombre" class="form-control" placeholder="Nombre de la persona"></div>
+            <div class="col-md-3"><input id="trabajadorPuesto" class="form-control" placeholder="Puesto o actividad"></div>
+            <div class="col-md-3"><input id="trabajadorTelefono" class="form-control" placeholder="Teléfono (opcional)"></div>
+            <div class="col-md-2"><button class="btn btn-gold w-100" id="btnGuardarTrabajador">Guardar persona</button></div>
+          </div>
+          <input type="hidden" id="trabajadorEditId">
+        </div>
+        <div class="panel table-responsive">
+          <table class="table table-sm" id="tablaTrabajadores">
+            <thead><tr><th>Persona</th><th>Puesto / actividad</th><th>Teléfono</th><th>Acciones</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="resultados" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Estado de resultados</h2>
+            <p>Resumen financiero interno con costos de fabricacion, ventas y utilidad.</p>
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-3"><div class="metric warn"><span>Ventas</span><strong>$<span id="resVentas">0.00</span></strong></div></div>
+          <div class="col-md-3"><div class="metric"><span>Cobrado</span><strong>$<span id="resCobrado">0.00</span></strong></div></div>
+          <div class="col-md-3"><div class="metric bad"><span>Por cobrar</span><strong>$<span id="resPorCobrar">0.00</span></strong></div></div>
+          <div class="col-md-3"><div class="metric good"><span>Ganancia neta</span><strong>$<span id="resUtilidad">0.00</span></strong></div></div>
+        </div>
+        <div class="panel">
+          <div class="row g-2 mb-3">
+            <div class="col-md-3"><input id="resDesde" type="date" class="form-control"></div>
+            <div class="col-md-3"><input id="resHasta" type="date" class="form-control"></div>
+            <div class="col-md-2"><button class="btn btn-outline-light w-100" id="btnLimpiarFechas">Todo</button></div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm" id="tablaResultados">
+              <thead><tr><th>Fecha</th><th>Folio</th><th>Cliente</th><th>Venta</th><th>Costo</th><th>Mano de obra</th><th>Ganancia neta</th><th>Cobrado</th><th>Saldo</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="herramientas" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Herramientas</h2>
+            <p>Respaldos, importacion, exportaciones y utilidades de operacion.</p>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="panel">
+              <div class="panel-title">Respaldos</div>
+              <p class="muted">Guarda una copia de clientes, proveedores, ventas, pagos y configuracion.</p>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-gold" id="btnExportBackup">Descargar respaldo JSON</button>
+                <label class="btn btn-outline-light mb-0" for="importBackup">Importar respaldo</label>
+                <input id="importBackup" type="file" accept="application/json,.json" class="visually-hidden">
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="panel">
+              <div class="panel-title">Exportaciones</div>
+              <p class="muted">Descarga informacion para revisar en Excel o compartir internamente.</p>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-light" id="btnCsvVentas">Ventas CSV</button>
+                <button class="btn btn-outline-light" id="btnCsvClientes">Clientes CSV</button>
+                <button class="btn btn-outline-light" id="btnPrintDoc">Imprimir nota actual</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="panel">
+              <div class="panel-title">Atajos de captura</div>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-info" id="btnDuplicarActual">Duplicar nota actual</button>
+                <button class="btn btn-outline-warning" id="btnLimpiarFormulario">Limpiar formulario</button>
+                <button class="btn btn-outline-success" id="btnVentaRapida">Venta rapida pagada</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="panel">
+              <div class="panel-title">Resumen rapido</div>
+              <div class="tool-grid">
+                <div><span class="muted">Clientes</span><strong id="toolClientes">0</strong></div>
+                <div><span class="muted">Ventas</span><strong id="toolVentas">0</strong></div>
+                <div><span class="muted">Cotizaciones</span><strong id="toolCotizaciones">0</strong></div>
+                <div><span class="muted">Por cobrar</span><strong>$<span id="toolPorCobrar">0.00</span></strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="configuracion" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Configuracion</h2>
+            <p>Datos que aparecen en PDF y comprobantes.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Empresa</label><input id="cfgEmpresa" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Telefono</label><input id="cfgTelefono" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Direccion</label><input id="cfgDireccion" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Facebook</label><input id="cfgFacebook" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">TikTok</label><input id="cfgTiktok" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Siguiente folio</label><input id="cfgFolio" type="number" min="1" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Frase de agradecimiento</label><textarea id="cfgAgradecimiento" class="form-control" rows="2"></textarea></div>
+            <div class="col-md-6"><label class="form-label">Texto de condiciones / pie de nota</label><textarea id="cfgCondiciones" class="form-control" rows="2"></textarea></div>
+          </div>
+          <button class="btn btn-gold mt-3" id="btnGuardarConfig">Guardar configuracion</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="docPreview" class="doc-preview"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="assets/js/app.js" defer></script>
+</body>
+</html>
+
