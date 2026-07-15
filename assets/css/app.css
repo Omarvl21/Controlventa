@@ -12,6 +12,7 @@
     }
 
     * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
     body {
       margin: 0;
       background: var(--bg);
@@ -19,7 +20,7 @@
       font-family: "Segoe UI", Arial, sans-serif;
     }
 
-    .app-shell { min-height: 100vh; display: grid; grid-template-columns: 250px 1fr; }
+    .app-shell { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
     .sidebar {
       background: #0d0e10;
       border-right: 1px solid var(--line);
@@ -28,6 +29,20 @@
       top: 0;
       height: 100vh;
       overflow: auto;
+      min-width: 0;
+    }
+    .sidebar .nav-btn {
+      white-space: normal;
+    }
+    .main { padding: 20px; max-width: 1500px; width: 100%; margin: 0 auto; min-width: 0; }
+    .topbar > div { min-width: 0; }
+    .panel .row > [class*="col-"] { min-width: 0; }
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .table-responsive table {
+      min-width: 100%;
     }
     .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
     .brand img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); }
@@ -169,10 +184,12 @@
       .sidebar .nav-btn {
         display: inline-flex;
         justify-content: center;
+        align-items: center;
         min-height: 42px;
         width: auto;
         min-width: max-content;
         margin: 0;
+        padding: 9px 12px;
       }
       .main { padding: 14px; }
       .topbar { display: block; }
@@ -219,9 +236,10 @@
         border: 1px solid var(--line);
         border-radius: 8px;
       }
-      .table td, .table th { white-space: nowrap; }
-      #tablaItems td:first-child, #tablaManoObra td:first-child { min-width: 180px; }
-      #tablaManoObra td:nth-child(2) { min-width: 140px; }
+      .table-responsive table { min-width: auto; }
+      .table thead th, .table td, .table th { white-space: normal; }
+      #tablaItems td:first-child, #tablaManoObra td:first-child { min-width: 140px; }
+      #tablaManoObra td:nth-child(2) { min-width: 120px; }
       .btn-group {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -243,12 +261,15 @@
       .panel-title { font-size: 15px; }
       .form-control, .form-select, .btn { min-height: 42px; }
       .btn-sm { min-height: 32px; }
-      .doc-preview { width: 794px; }
+      .doc-preview { width: 100%; }
       .d-flex.flex-wrap.gap-2 > .btn,
       .d-flex.flex-wrap.gap-2 > label.btn {
         width: 100%;
       }
       .text-end { text-align: left !important; margin-top: 10px; }
+      .topbar { gap: 12px; }
+      .topbar > div { width: 100%; }
+      .sidebar { padding: 8px 10px; }
     }
 
     @media print {
