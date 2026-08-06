@@ -1,4 +1,6 @@
 import socket
+import os
+import base64
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 
@@ -15,7 +17,38 @@ class SecureStaticHandler(SimpleHTTPRequestHandler):
         self.send_header("X-Frame-Options", "SAMEORIGIN")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        # Encourage browsers to upgrade insecure requests when possible
+        self.send_header("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+        # Basic Content Security Policy header is provided in HTML meta; this is a fallback
+        self.send_header("X-Content-Security-Policy", "default-src 'self'")
         super().end_headers()
+
+    def send_401(self):
+        self.send_response(401)
+        self.send_header('WWW-Authenticate', 'Basic realm="Sistema Pegaso"')
+        self.send_header('Content-type', 'text/html')
+        super().end_headers()
+        self.wfile.write(b'Authentication required')
+
+    def is_authorized(self):
+        user = os.environ.get('PEGASO_USER', 'admin')
+        pwd = os.environ.get('PEGASO_PASS', 'admin')
+        auth = self.headers.get('Authorization')
+        if not auth or not auth.startswith('Basic '):
+            return False
+        try:
+            token = auth.split(' ', 1)[1].strip()
+            decoded = base64.b64decode(token).decode('utf-8')
+            return decoded == f"{user}:{pwd}"
+        except Exception:
+            return False
+
+    def do_GET(self):
+        # Protect the app with optional HTTP Basic auth when environment variables are present
+        if os.environ.get('PEGASO_REQUIRE_AUTH', '1') == '1':
+            if not self.is_authorized():
+                return self.send_401()
+        return super().do_GET()
 
 
 def get_network_addresses():

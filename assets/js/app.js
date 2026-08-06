@@ -851,6 +851,17 @@
       downloadTextFile(`respaldo-pegaso-${today()}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
     }
 
+    // Register service worker for PWA / offline support
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/assets/js/sw.js').then(reg => {
+          console.log('Service worker registered.', reg.scope);
+        }).catch(err => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
+
     function importBackupFile(file) {
       if (!file) return;
       const reader = new FileReader();
