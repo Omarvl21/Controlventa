@@ -43,6 +43,7 @@
         agradecimiento: "Gracias por su preferencia y confianza.",
         condiciones: "Seguiremos trabajando para brindarle siempre la mejor calidad y servicio."
       },
+      productos: [],
       clientes: [],
       proveedores: [],
       trabajadores: [],
@@ -63,6 +64,7 @@
           ...cloneDefault(),
           ...loaded,
           config: { ...defaultState.config, ...(loaded.config || {}) },
+          productos: loaded.productos || [],
           clientes: loaded.clientes || [],
           proveedores: loaded.proveedores || [],
           trabajadores: loaded.trabajadores || [],
@@ -138,6 +140,7 @@
 
     function normalizeState() {
       state.config = { ...defaultState.config, ...(state.config || {}) };
+      state.productos = Array.isArray(state.productos) ? state.productos : [];
       state.clientes = Array.isArray(state.clientes) ? state.clientes : [];
       state.proveedores = Array.isArray(state.proveedores) ? state.proveedores : [];
       state.trabajadores = Array.isArray(state.trabajadores) ? state.trabajadores : [];
@@ -161,7 +164,7 @@
         clienteTelefono: "",
         clienteRfc: "",
         clienteDireccion: "",
-        items: [{ id: uid(), desc: "", qty: 1, precio: 0, costo: 0 }],
+        items: [{ id: uid(), desc: "", qty: 1, precio: 0, costo: 0, productId: "" }],
         envio: 0,
         notas: "",
         agradecimiento: "",
@@ -181,11 +184,12 @@
       const saldo = Math.max(total - pagado, 0);
       const gananciaBruta = total - costo;
       const ganancia = gananciaBruta - manoObra;
+      const recuperar = costo + manoObra;
       let estado = "PENDIENTE";
       if (doc.tipo === "COTIZACION") estado = "COTIZACION";
       else if (total > 0 && pagado >= total) estado = "PAGADO";
       else if (pagado > 0) estado = "PARCIAL";
-      return { subtotal, costo, envio, manoObra, total, pagado, saldo, gananciaBruta, ganancia, estado };
+      return { subtotal, costo, envio, manoObra, total, pagado, saldo, gananciaBruta, ganancia, recuperar, estado };
     }
 
     function persistClientFromForm() {
@@ -224,7 +228,8 @@
           desc: i.desc.trim(),
           qty: parseMoney(i.qty),
           precio: parseMoney(i.precio),
-          costo: parseMoney(i.costo)
+          costo: parseMoney(i.costo),
+          productId: i.productId || ""
         })),
         envio: parseMoney(form.envio),
         notas: form.notas.trim(),
@@ -258,7 +263,7 @@
       renderAll();
       if (showAlert) {
         const resumen = doc.tipo === "COTIZACION" ? "Cotización guardada" : "Pedido guardado";
-        alert(`${resumen} con folio ${doc.folio}.\n\nMano de obra por pagar: $${money(doc.totals.manoObra)}\nGanancia antes de mano de obra: $${money(doc.totals.gananciaBruta)}\nGanancia neta: $${money(doc.totals.ganancia)}`);
+        alert(`${resumen} con folio ${doc.folio}.\n\nMonto a recuperar: $${money(doc.totals.recuperar)}\nMano de obra por pagar: $${money(doc.totals.manoObra)}\nGanancia antes de mano de obra: $${money(doc.totals.gananciaBruta)}\nGanancia neta: $${money(doc.totals.ganancia)}`);
       }
       return doc;
     }
@@ -352,8 +357,12 @@
         const importe = parseMoney(item.qty) * parseMoney(item.precio);
         const ganancia = importe - (parseMoney(item.qty) * parseMoney(item.costo));
         const tr = document.createElement("tr");
+        const productOptions = '<option value="">Sin catálogo</option>' + state.productos.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(product => `<option value="${product.id}" ${product.id === item.productId ? "selected" : ""}>${escapeHtml(product.nombre)}${product.stockPiezas !== undefined ? ` • ${product.stockPiezas} pzs` : ""}</option>`).join("");
         tr.innerHTML = `
-          <td><input class="form-control form-control-sm item-desc" data-index="${index}" value="${escapeAttr(item.desc)}" placeholder="Descripcion"></td>
+          <td>
+            <select class="form-select form-select-sm item-product" data-index="${index}">${productOptions}</select>
+            <input class="form-control form-control-sm item-desc mt-1" data-index="${index}" value="${escapeAttr(item.desc)}" placeholder="Descripcion">
+          </td>
           <td><input type="text" inputmode="decimal" class="form-control form-control-sm item-qty" data-index="${index}" value="${escapeAttr(item.qty)}"></td>
           <td><input type="text" inputmode="decimal" class="form-control form-control-sm item-precio money-input" data-index="${index}" value="${escapeAttr(item.precio)}"></td>
           <td><input type="text" inputmode="decimal" class="form-control form-control-sm item-costo money-input" data-index="${index}" value="${escapeAttr(item.costo)}"></td>
@@ -409,6 +418,7 @@
       document.getElementById("totalManoObra").textContent = money(totals.manoObra);
       document.getElementById("totalGananciaBruta").textContent = money(totals.gananciaBruta);
       document.getElementById("totalGanancia").textContent = money(totals.ganancia);
+      document.getElementById("recuperarDoc").textContent = money(totals.recuperar);
     }
 
     function updateRowTotals(index) {
@@ -471,6 +481,27 @@
         acc.pendientes += d.totals.saldo > 0 ? 1 : 0;
         return acc;
       }, { ventas: 0, pagado: 0, saldo: 0, pendientes: 0 });
+    }
+
+    function renderProducts() {
+      const tbody = document.querySelector("#tablaProductos tbody");
+      tbody.innerHTML = "";
+      state.productos.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(product => {
+        tbody.insertAdjacentHTML("beforeend", `
+          <tr>
+            <td>${escapeHtml(product.nombre)}</td>
+            <td>$${money(product.precio || 0)}</td>
+            <td>${escapeHtml(product.cantidadContenido || 1)}</td>
+            <td>${escapeHtml(product.stockPiezas || 0)}</td>
+            <td>${escapeHtml(product.materialNecesario || "")}${product.materialCantidad ? ` • ${money(product.materialCantidad)}` : ""}</td>
+            <td>$${money(product.costoFabricacion || 0)}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-light" data-edit-product="${product.id}">Editar</button>
+              <button class="btn btn-sm btn-outline-danger" data-delete-product="${product.id}">Borrar</button>
+            </td>
+          </tr>
+        `);
+      });
     }
 
     function renderClients() {
@@ -614,6 +645,7 @@
     function renderAll() {
       renderForm();
       renderRecords();
+      renderProducts();
       renderClients();
       renderSuppliers();
       renderWorkers();
@@ -711,26 +743,56 @@
       return new Promise(resolve => setTimeout(resolve, 250));
     }
 
-    async function downloadPdf(doc) {
+    function getPdfFileName(doc) {
+      const input = document.getElementById("pdfFileName");
+      const fileName = String(input?.value || "").trim();
+      if (!fileName) {
+        return `${doc.tipo === "COTIZACION" ? "Cotizacion_" : "Venta_"}${doc.folio}`;
+      }
+      return fileName.replace(/[\\/:*?"<>|]+/g, "-");
+    }
+
+    async function downloadPdf(doc, fileName) {
       const area = document.getElementById("docPreview");
       area.innerHTML = documentHtml(doc);
       renderDocQrCodes(doc);
       area.style.left = "0";
+      area.style.top = "0";
+      area.style.width = "794px";
       await waitForQr();
-      const canvas = await html2canvas(area, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(area, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#fff",
+        windowWidth: area.scrollWidth,
+        windowHeight: area.scrollHeight
+      });
       const imgData = canvas.toDataURL("image/png");
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const imgProps = pdf.getImageProperties(imgData);
-      const width = pageWidth - 20;
-      const height = imgProps.height * width / imgProps.width;
-      pdf.addImage(imgData, "PNG", 10, 10, width, height);
-      pdf.save((doc.tipo === "COTIZACION" ? "Cotizacion_" : "Venta_") + doc.folio + ".pdf");
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const marginX = 8;
+      const marginY = 8;
+      const availableWidth = pageWidth - marginX * 2;
+      const availableHeight = pageHeight - marginY * 2;
+      const scale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height);
+      const imgWidth = canvas.width * scale;
+      const imgHeight = canvas.height * scale;
+      const pageHeightPx = availableHeight / scale;
+      const totalPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
+
+      for (let page = 0; page < totalPages; page += 1) {
+        if (page > 0) pdf.addPage();
+        const yOffset = marginY - (page * availableHeight);
+        pdf.addImage(imgData, "PNG", marginX, yOffset, imgWidth, imgHeight);
+      }
+
+      pdf.save(`${fileName}.pdf`);
       area.style.left = "-9999px";
     }
 
-    function sendWhatsApp(doc) {
+    function openWhatsAppForClient(doc) {
       const phone = String(doc.clienteTelefono || "").replace(/\D/g, "");
       const cfgPhone = String(state.config.telefono || "").replace(/\D/g, "");
       const agradecimiento = doc.agradecimiento || state.config.agradecimiento || "Gracias por su preferencia.";
@@ -744,13 +806,26 @@
         agradecimiento,
         `Contacto: ${cfgPhone}`
       ];
-      const msg = encodeURIComponent(lines.join("\n"));
       if (!phone) {
         navigator.clipboard?.writeText(lines.join("\n"));
-        alert("El cliente no tiene WhatsApp. Se copio el mensaje al portapapeles.");
+        alert("El cliente no tiene teléfono válido. El mensaje se copió al portapapeles.");
         return;
       }
+      const msg = encodeURIComponent(lines.join("\n"));
       window.open(`https://wa.me/52${phone}?text=${msg}`, "_blank");
+    }
+
+    async function downloadAndMaybeSendPdf(doc) {
+      const fileName = getPdfFileName(doc);
+      await downloadPdf(doc, fileName);
+      const shouldSend = document.getElementById("pdfSendClient")?.checked;
+      if (shouldSend) {
+        openWhatsAppForClient(doc);
+      }
+    }
+
+    function sendWhatsApp(doc) {
+      openWhatsAppForClient(doc);
     }
 
     function downloadTextFile(filename, content, type = "text/plain;charset=utf-8") {
@@ -810,7 +885,7 @@
     }
 
     function exportVentasCsv() {
-      const headers = ["Folio", "Tipo", "Fecha", "Cliente", "Telefono", "Total", "Pagado", "Saldo", "Estado", "Costo", "Mano de obra", "Ganancia neta"];
+      const headers = ["Folio", "Tipo", "Fecha", "Cliente", "Telefono", "Total", "Recuperar", "Pagado", "Saldo", "Estado", "Costo", "Mano de obra", "Ganancia neta"];
       const rows = state.documentos.map(doc => [
         doc.folio,
         doc.tipo,
@@ -818,6 +893,7 @@
         doc.clienteNombre,
         doc.clienteTelefono,
         money(doc.totals.total),
+        money(doc.totals.recuperar),
         money(doc.totals.pagado),
         money(doc.totals.saldo),
         doc.totals.estado,
@@ -880,6 +956,30 @@
       form.tipo = "VENTA";
       form.pagos = [{ id: uid(), fecha: new Date().toLocaleString("es-MX"), metodo: "Efectivo", monto: totals.total }];
       saveDocument(true);
+    }
+
+    function saveProductFromPanel() {
+      const id = document.getElementById("prodEditId").value || uid();
+      const nombre = document.getElementById("prodNombre").value.trim();
+      if (!nombre) return alert("Escribe el nombre del producto.");
+      const data = {
+        id,
+        nombre,
+        precio: parseMoney(document.getElementById("prodPrecio").value),
+        cantidadContenido: Math.max(1, Number(document.getElementById("prodContenido").value) || 1),
+        stockPiezas: Math.max(0, Number(document.getElementById("prodStock").value) || 0),
+        materialCantidad: parseMoney(document.getElementById("prodMaterialCantidad").value),
+        materialNecesario: document.getElementById("prodMaterial").value.trim(),
+        costoFabricacion: parseMoney(document.getElementById("prodCosto").value),
+        descripcion: document.getElementById("prodDescripcion").value.trim()
+      };
+      const idx = state.productos.findIndex(p => p.id === id);
+      if (idx >= 0) state.productos[idx] = data;
+      else state.productos.push(data);
+      document.getElementById("prodEditId").value = "";
+      ["prodNombre", "prodPrecio", "prodContenido", "prodStock", "prodMaterial", "prodMaterialCantidad", "prodCosto", "prodDescripcion"].forEach(id => document.getElementById(id).value = "");
+      saveState();
+      renderAll();
     }
 
     function saveClientFromPanel() {
@@ -979,7 +1079,7 @@
       if (target.id === "btnNuevo") resetForm();
       if (target.id === "btnPdf") {
         const doc = saveDocument(false);
-        if (doc) downloadPdf(doc);
+        if (doc) downloadAndMaybeSendPdf(doc);
       }
       if (target.id === "btnWhatsApp") {
         const doc = saveDocument(false);
@@ -993,6 +1093,7 @@
         document.getElementById("clienteEditId").value = form.clienteId;
         showSection("clientes");
       }
+      if (target.id === "btnGuardarProducto") saveProductFromPanel();
       if (target.id === "btnGuardarCliente") saveClientFromPanel();
       if (target.id === "btnGuardarProveedor") saveSupplier();
       if (target.id === "btnGuardarTrabajador") saveWorker();
@@ -1022,6 +1123,25 @@
       if (target.dataset.waDoc) {
         const doc = state.documentos.find(d => d.id === target.dataset.waDoc);
         if (doc) sendWhatsApp(doc);
+      }
+      if (target.dataset.editProduct) {
+        const p = state.productos.find(p => p.id === target.dataset.editProduct);
+        if (!p) return;
+        document.getElementById("prodEditId").value = p.id;
+        document.getElementById("prodNombre").value = p.nombre || "";
+        document.getElementById("prodPrecio").value = p.precio || "";
+        document.getElementById("prodContenido").value = p.cantidadContenido || 1;
+        document.getElementById("prodStock").value = p.stockPiezas || 0;
+        document.getElementById("prodMaterial").value = p.materialNecesario || "";
+        document.getElementById("prodMaterialCantidad").value = p.materialCantidad || "";
+        document.getElementById("prodCosto").value = p.costoFabricacion || "";
+        document.getElementById("prodDescripcion").value = p.descripcion || "";
+      }
+      if (target.dataset.deleteProduct) {
+        if (!confirm("Borrar producto del catalogo?")) return;
+        state.productos = state.productos.filter(p => p.id !== target.dataset.deleteProduct);
+        saveState();
+        renderAll();
       }
       if (target.dataset.editClient) {
         const c = state.clientes.find(c => c.id === target.dataset.editClient);
@@ -1093,6 +1213,17 @@
       if (t.id === "agradecimientoDoc") form.agradecimiento = t.value;
       if (t.id === "condicionesDoc") form.condiciones = t.value;
       if (t.classList.contains("item-desc")) form.items[Number(t.dataset.index)].desc = t.value;
+      if (t.classList.contains("item-product")) {
+        const item = form.items[Number(t.dataset.index)];
+        const product = state.productos.find(p => p.id === t.value);
+        item.productId = t.value;
+        if (product) {
+          item.desc = product.nombre;
+          item.precio = product.precio;
+          item.costo = product.costoFabricacion || 0;
+          renderForm();
+        }
+      }
       if (t.classList.contains("item-qty")) { form.items[Number(t.dataset.index)].qty = t.value; updateRowTotals(t.dataset.index); }
       if (t.classList.contains("item-precio")) { form.items[Number(t.dataset.index)].precio = t.value; updateRowTotals(t.dataset.index); }
       if (t.classList.contains("item-costo")) { form.items[Number(t.dataset.index)].costo = t.value; updateRowTotals(t.dataset.index); }
@@ -1108,6 +1239,17 @@
         if (t.classList.contains("item-qty")) form.items[Number(t.dataset.index)].qty = parseMoney(t.value);
         if (t.classList.contains("item-precio")) form.items[Number(t.dataset.index)].precio = parseMoney(t.value);
         if (t.classList.contains("item-costo")) form.items[Number(t.dataset.index)].costo = parseMoney(t.value);
+        renderForm();
+      }
+      if (t.classList.contains("item-product")) {
+        const item = form.items[Number(t.dataset.index)];
+        const product = state.productos.find(p => p.id === t.value);
+        item.productId = t.value;
+        if (product) {
+          item.desc = product.nombre;
+          item.precio = product.precio;
+          item.costo = product.costoFabricacion || 0;
+        }
         renderForm();
       }
       if (t.classList.contains("trabajo-monto")) {

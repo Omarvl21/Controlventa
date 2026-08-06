@@ -21,6 +21,7 @@
       </div>
       <button class="nav-btn active" data-section="pos">Punto de venta</button>
       <button class="nav-btn" data-section="registros">Registros</button>
+      <button class="nav-btn" data-section="productos">Productos</button>
       <button class="nav-btn" data-section="clientes">Clientes</button>
       <button class="nav-btn" data-section="proveedores">Proveedores</button>
       <button class="nav-btn" data-section="manoObra">Mano de obra</button>
@@ -182,11 +183,24 @@
               <div class="panel-title">Totales</div>
               <div class="d-flex justify-content-between fs-5"><span>Subtotal</span><strong>$<span id="subtotalDoc">0.00</span></strong></div>
               <div class="d-flex justify-content-between"><span>Envio</span><strong>$<span id="envioTotal">0.00</span></strong></div>
+              <div class="d-flex justify-content-between"><span>Recuperar</span><strong class="text-info">$<span id="recuperarDoc">0.00</span></strong></div>
               <hr>
               <div class="d-flex justify-content-between fs-4"><span>Total</span><strong class="text-warning">$<span id="totalDoc">0.00</span></strong></div>
               <div class="d-flex justify-content-between"><span>Pagado</span><strong class="text-success">$<span id="pagadoDoc">0.00</span></strong></div>
               <div class="d-flex justify-content-between"><span>Falta pagar</span><strong class="text-danger">$<span id="saldoDoc">0.00</span></strong></div>
-              <div class="mt-3 d-flex flex-wrap gap-2">
+              <div class="row g-2 mb-3 pdf-actions">
+                <div class="col-12 col-md-7">
+                  <label class="form-label">Nombre del archivo PDF</label>
+                  <input id="pdfFileName" class="form-control" placeholder="Ej. Nota_1234" type="text">
+                </div>
+                <div class="col-12 col-md-5 d-flex align-items-center">
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="pdfSendClient">
+                    <label class="form-check-label" for="pdfSendClient">Enviar al cliente por WhatsApp</label>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 d-flex flex-wrap gap-2 action-buttons">
                 <button class="btn btn-gold" id="btnGuardar">Guardar</button>
                 <button class="btn btn-outline-light" id="btnPdf">Descargar PDF</button>
                 <button class="btn btn-outline-success" id="btnWhatsApp">WhatsApp</button>
@@ -231,6 +245,35 @@
               <tbody></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section id="productos" class="section">
+        <div class="topbar">
+          <div>
+            <h2>Productos</h2>
+            <p>Catalogo de productos con precio, contenido, stock, material requerido y costos de fabricacion.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row g-2">
+            <div class="col-md-3"><input id="prodNombre" class="form-control" placeholder="Nombre del producto"></div>
+            <div class="col-md-2"><input id="prodPrecio" type="text" inputmode="decimal" class="form-control money-input" placeholder="Precio venta"></div>
+            <div class="col-md-2"><input id="prodContenido" type="number" min="1" class="form-control" placeholder="Contiene"></div>
+            <div class="col-md-2"><input id="prodStock" type="number" min="0" class="form-control" placeholder="Stock piezas"></div>
+            <div class="col-md-3"><input id="prodMaterial" class="form-control" placeholder="Material necesario"></div>
+            <div class="col-md-2"><input id="prodMaterialCantidad" type="text" inputmode="decimal" class="form-control money-input" placeholder="Cantidad material"></div>
+            <div class="col-md-2"><input id="prodCosto" type="text" inputmode="decimal" class="form-control money-input" placeholder="Costo fabricacion"></div>
+            <div class="col-md-3"><input id="prodDescripcion" class="form-control" placeholder="Descripcion / notas"></div>
+            <div class="col-md-2"><button class="btn btn-gold w-100" id="btnGuardarProducto">Guardar producto</button></div>
+          </div>
+          <input type="hidden" id="prodEditId">
+        </div>
+        <div class="panel table-responsive">
+          <table class="table table-sm" id="tablaProductos">
+            <thead><tr><th>Producto</th><th>Precio</th><th>Contiene</th><th>Stock</th><th>Material</th><th>Costo</th><th>Acciones</th></tr></thead>
+            <tbody></tbody>
+          </table>
         </div>
       </section>
 

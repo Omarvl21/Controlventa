@@ -118,10 +118,13 @@
       left: -9999px;
       top: 0;
       width: 794px;
+      min-height: 1123px;
       background: #fff;
       color: #111;
       padding: 28px;
       font-family: Arial, sans-serif;
+      box-sizing: border-box;
+      overflow: visible;
     }
     .doc-head { display: grid; grid-template-columns: 105px 1fr 180px; gap: 18px; align-items: center; border-bottom: 3px solid #111; padding-bottom: 12px; }
     .doc-logo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid #111; }
@@ -212,6 +215,31 @@
       font-size: 22px;
       color: var(--gold);
     }
+    .action-buttons,
+    .pdf-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: center;
+    }
+    .action-buttons > button,
+    .pdf-actions input,
+    .pdf-actions .form-check {
+      width: 100%;
+      min-height: 44px;
+    }
+    .pdf-actions .form-check {
+      display: flex;
+      align-items: center;
+      margin-top: 0;
+    }
+    .pdf-actions .form-check-input {
+      margin-top: 0.15rem;
+    }
+    .pdf-actions label {
+      margin-bottom: 0;
+      margin-left: 0.5rem;
+    }
 
     @media (max-width: 720px) {
       body { font-size: 15px; }
@@ -262,9 +290,18 @@
       .form-control, .form-select, .btn { min-height: 42px; }
       .btn-sm { min-height: 32px; }
       .doc-preview { width: 100%; }
-      .d-flex.flex-wrap.gap-2 > .btn,
-      .d-flex.flex-wrap.gap-2 > label.btn {
+      .action-buttons,
+      .pdf-actions {
+        display: grid;
+        gap: 10px;
+      }
+      .action-buttons > button,
+      .pdf-actions .form-control,
+      .pdf-actions .form-check {
         width: 100%;
+      }
+      .pdf-actions {
+        grid-template-columns: 1fr;
       }
       .text-end { text-align: left !important; margin-top: 10px; }
       .topbar { gap: 12px; }
