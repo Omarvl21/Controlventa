@@ -175,7 +175,12 @@
     }
 
     function calcDoc(doc = form) {
-      const subtotal = doc.items.reduce((sum, item) => sum + (parseMoney(item.qty) || 0) * (parseMoney(item.precio) || 0), 0);
+      const subtotal = doc.items.reduce((sum, item) => {
+        const qty = parseMoney(item.qty) || 0;
+        const basePrecio = parseMoney(item.precio) || 0;
+        const precioUnitario = getItemPriceForQty(qty, item, basePrecio);
+        return sum + qty * precioUnitario;
+      }, 0);
       const costo = doc.items.reduce((sum, item) => sum + (parseMoney(item.qty) || 0) * (parseMoney(item.costo) || 0), 0);
       const envio = parseMoney(doc.envio);
       const manoObra = (doc.manoObra || []).reduce((sum, trabajo) => sum + parseMoney(trabajo.monto), 0);
@@ -190,6 +195,21 @@
       else if (total > 0 && pagado >= total) estado = "PAGADO";
       else if (pagado > 0) estado = "PARCIAL";
       return { subtotal, costo, envio, manoObra, total, pagado, saldo, gananciaBruta, ganancia, recuperar, estado };
+    }
+
+    function getItemPriceForQty(qty, item, fallbackPrice = parseMoney(item.precio)) {
+      const numericQty = parseMoney(qty) || 0;
+      const basePrice = parseMoney(fallbackPrice) || 0;
+      const product = state.productos.find(p => p.id === item.productId);
+      if (product) {
+        const mayoreoPrice = parseMoney(product.precioMayoreo || 0);
+        const mayoreoPiezas = Number(product.piezasMayoreo || 0);
+        if (mayoreoPrice > 0 && mayoreoPiezas > 0 && numericQty >= mayoreoPiezas) return mayoreoPrice;
+        const precioVenta = parseMoney(product.precio || 0);
+        if (precioVenta > 0 && numericQty > 0) return precioVenta;
+      }
+      if (basePrice > 0 && numericQty > 0) return basePrice;
+      return 0;
     }
 
     function persistClientFromForm() {
@@ -354,8 +374,10 @@
       const tbody = document.querySelector("#tablaItems tbody");
       tbody.innerHTML = "";
       form.items.forEach((item, index) => {
-        const importe = parseMoney(item.qty) * parseMoney(item.precio);
-        const ganancia = importe - (parseMoney(item.qty) * parseMoney(item.costo));
+        const qty = parseMoney(item.qty) || 0;
+        const precioUnitario = getItemPriceForQty(qty, item, item.precio);
+        const importe = qty * precioUnitario;
+        const ganancia = importe - (qty * parseMoney(item.costo));
         const tr = document.createElement("tr");
         const productOptions = '<option value="">Sin catálogo</option>' + state.productos.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(product => `<option value="${product.id}" ${product.id === item.productId ? "selected" : ""}>${escapeHtml(product.nombre)}${product.stockPiezas !== undefined ? ` • ${product.stockPiezas} pzs` : ""}</option>`).join("");
         tr.innerHTML = `
@@ -397,7 +419,7 @@
         manoObraBody.insertAdjacentHTML("beforeend", `
           <tr>
             <td><select class="form-select form-select-sm trabajo-persona" data-index="${index}">${options}</select></td>
-            <td class="trabajo-puesto">${escapeHtml(trabajo.puesto || "—")}</td>
+            <td><input class="form-control form-control-sm trabajo-actividad" data-index="${index}" value="${escapeAttr(trabajo.puesto || trabajo.actividad || "")}" placeholder="Actividad"></td>
             <td><input type="text" inputmode="decimal" class="form-control form-control-sm trabajo-monto money-input" data-index="${index}" value="${escapeAttr(trabajo.monto)}" placeholder="0.00"></td>
             <td><button class="btn btn-sm btn-outline-danger" data-remove-trabajo="${index}">X</button></td>
           </tr>
@@ -406,6 +428,21 @@
 
       const totals = calcDoc();
       renderTotals(totals);
+    }
+
+    function renderManoObraSummary() {
+      const container = document.getElementById("resumenManoObra");
+      if (!container) return;
+      const items = (form.manoObra || []).filter(trabajo => trabajo.trabajadorId || trabajo.nombre || trabajo.puesto || trabajo.monto);
+      if (!items.length) {
+        container.innerHTML = '<span class="muted">Sin pagos por persona</span>';
+        return;
+      }
+      container.innerHTML = items.map(trabajo => {
+        const nombre = trabajo.nombre || "Sin nombre";
+        const actividad = trabajo.puesto || trabajo.actividad || "Sin actividad";
+        return `<div>• ${escapeHtml(nombre)} — ${escapeHtml(actividad)}: $${money(trabajo.monto || 0)}</div>`;
+      }).join("");
     }
 
     function renderTotals(totals = calcDoc()) {
@@ -419,14 +456,17 @@
       document.getElementById("totalGananciaBruta").textContent = money(totals.gananciaBruta);
       document.getElementById("totalGanancia").textContent = money(totals.ganancia);
       document.getElementById("recuperarDoc").textContent = money(totals.recuperar);
+      renderManoObraSummary();
     }
 
     function updateRowTotals(index) {
       const row = document.querySelector(`#tablaItems tbody tr:nth-child(${Number(index) + 1})`);
       const item = form.items[Number(index)];
       if (!row || !item) return;
-      const importe = parseMoney(item.qty) * parseMoney(item.precio);
-      const ganancia = importe - (parseMoney(item.qty) * parseMoney(item.costo));
+      const qty = parseMoney(item.qty) || 0;
+      const precioUnitario = getItemPriceForQty(qty, item, item.precio);
+      const importe = qty * precioUnitario;
+      const ganancia = importe - (qty * parseMoney(item.costo));
       const gananciaCell = row.querySelector(".item-ganancia");
       row.querySelector(".item-importe").textContent = "$" + money(importe);
       gananciaCell.textContent = "$" + money(ganancia);
@@ -490,7 +530,8 @@
         tbody.insertAdjacentHTML("beforeend", `
           <tr>
             <td>${escapeHtml(product.nombre)}</td>
-            <td>$${money(product.precio || 0)}</td>
+            <td>$${money(product.precio || 0)} / $${money(product.precioMayoreo || 0)}</td>
+            <td>${escapeHtml(product.piezasMayoreo || 0)}</td>
             <td>${escapeHtml(product.cantidadContenido || 1)}</td>
             <td>${escapeHtml(product.stockPiezas || 0)}</td>
             <td>${escapeHtml(product.materialNecesario || "")}${product.materialCantidad ? ` • ${money(product.materialCantidad)}` : ""}</td>
@@ -973,22 +1014,31 @@
       const id = document.getElementById("prodEditId").value || uid();
       const nombre = document.getElementById("prodNombre").value.trim();
       if (!nombre) return alert("Escribe el nombre del producto.");
+      const costoFabricacion = parseMoney(document.getElementById("prodCosto").value);
+      const precioVenta = parseMoney(document.getElementById("prodPrecio").value);
+      const precioMayoreo = parseMoney(document.getElementById("prodPrecioMayoreo").value);
+      const ganancia = parseMoney(document.getElementById("prodGanancia").value);
+      const precioBase = precioVenta || (costoFabricacion > 0 && ganancia > 0 ? costoFabricacion + ganancia : 0);
+      const precioMayoreoBase = precioMayoreo || precioBase || 0;
       const data = {
         id,
         nombre,
-        precio: parseMoney(document.getElementById("prodPrecio").value),
+        precio: precioBase,
+        precioMayoreo: precioMayoreoBase,
+        piezasMayoreo: Math.max(0, Number(document.getElementById("prodPiezasMayoreo").value) || 0),
+        ganancia,
         cantidadContenido: Math.max(1, Number(document.getElementById("prodContenido").value) || 1),
         stockPiezas: Math.max(0, Number(document.getElementById("prodStock").value) || 0),
         materialCantidad: parseMoney(document.getElementById("prodMaterialCantidad").value),
         materialNecesario: document.getElementById("prodMaterial").value.trim(),
-        costoFabricacion: parseMoney(document.getElementById("prodCosto").value),
+        costoFabricacion,
         descripcion: document.getElementById("prodDescripcion").value.trim()
       };
       const idx = state.productos.findIndex(p => p.id === id);
       if (idx >= 0) state.productos[idx] = data;
       else state.productos.push(data);
       document.getElementById("prodEditId").value = "";
-      ["prodNombre", "prodPrecio", "prodContenido", "prodStock", "prodMaterial", "prodMaterialCantidad", "prodCosto", "prodDescripcion"].forEach(id => document.getElementById(id).value = "");
+      ["prodNombre", "prodPrecio", "prodPrecioMayoreo", "prodPiezasMayoreo", "prodGanancia", "prodContenido", "prodStock", "prodMaterial", "prodMaterialCantidad", "prodCosto", "prodDescripcion"].forEach(id => document.getElementById(id).value = "");
       saveState();
       renderAll();
     }
@@ -1141,6 +1191,9 @@
         document.getElementById("prodEditId").value = p.id;
         document.getElementById("prodNombre").value = p.nombre || "";
         document.getElementById("prodPrecio").value = p.precio || "";
+        document.getElementById("prodPrecioMayoreo").value = p.precioMayoreo || "";
+        document.getElementById("prodPiezasMayoreo").value = p.piezasMayoreo || 0;
+        document.getElementById("prodGanancia").value = p.ganancia || "";
         document.getElementById("prodContenido").value = p.cantidadContenido || 1;
         document.getElementById("prodStock").value = p.stockPiezas || 0;
         document.getElementById("prodMaterial").value = p.materialNecesario || "";
@@ -1239,6 +1292,7 @@
       if (t.classList.contains("item-precio")) { form.items[Number(t.dataset.index)].precio = t.value; updateRowTotals(t.dataset.index); }
       if (t.classList.contains("item-costo")) { form.items[Number(t.dataset.index)].costo = t.value; updateRowTotals(t.dataset.index); }
       if (t.classList.contains("trabajo-monto")) { form.manoObra[Number(t.dataset.index)].monto = t.value; renderTotals(); }
+      if (t.classList.contains("trabajo-actividad")) { form.manoObra[Number(t.dataset.index)].puesto = t.value; form.manoObra[Number(t.dataset.index)].actividad = t.value; renderTotals(); }
       if (["buscarRegistros", "filtroTipo", "filtroEstado"].includes(t.id)) renderRecords();
       if (["resDesde", "resHasta"].includes(t.id)) renderResults();
     });
@@ -1265,6 +1319,12 @@
       }
       if (t.classList.contains("trabajo-monto")) {
         form.manoObra[Number(t.dataset.index)].monto = parseMoney(t.value);
+        renderForm();
+      }
+      if (t.classList.contains("trabajo-actividad")) {
+        const trabajo = form.manoObra[Number(t.dataset.index)];
+        trabajo.puesto = t.value;
+        trabajo.actividad = t.value;
         renderForm();
       }
       if (t.classList.contains("trabajo-persona")) {
