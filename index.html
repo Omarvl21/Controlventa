@@ -39,6 +39,12 @@
       <button class="nav-btn" data-section="configuracion">Configuracion</button>
     </aside>
 
+    <header class="mobile-header">
+      <button class="mobile-menu-btn" id="btnMobileMenu" type="button" aria-label="Abrir menú"><span></span><span></span><span></span></button>
+      <div class="mobile-header-title">Punto de venta</div>
+      <button class="mobile-profile-btn" type="button" aria-label="Cuenta">P</button>
+    </header>
+
     <main class="main">
       <section id="pos" class="section active">
         <div class="topbar">
@@ -487,6 +493,13 @@
         </div>
       </section>
     </main>
+
+    <nav class="mobile-nav" aria-label="Navegación principal">
+      <button class="nav-btn active" data-section="pos" type="button"><span class="mobile-nav-icon">⌂</span><span>Ventas</span></button>
+      <button class="nav-btn" data-section="registros" type="button"><span class="mobile-nav-icon">▤</span><span>Registros</span></button>
+      <button class="nav-btn" data-section="productos" type="button"><span class="mobile-nav-icon">▣</span><span>Productos</span></button>
+      <button class="nav-btn" data-section="configuracion" type="button"><span class="mobile-nav-icon">•••</span><span>Más</span></button>
+    </nav>
   </div>
 
   <div id="docPreview" class="doc-preview"></div>

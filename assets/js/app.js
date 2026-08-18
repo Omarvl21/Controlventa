@@ -699,6 +699,10 @@
     function showSection(id) {
       document.querySelectorAll(".section").forEach(s => s.classList.toggle("active", s.id === id));
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section === id));
+      document.querySelector(".sidebar")?.classList.remove("is-open");
+      const title = document.querySelector(`#${id} h2`)?.textContent?.trim();
+      const mobileTitle = document.querySelector(".mobile-header-title");
+      if (title && mobileTitle) mobileTitle.textContent = title;
     }
 
     function escapeHtml(value) {
@@ -1104,6 +1108,10 @@
 
     document.addEventListener("click", event => {
       const target = event.target;
+      if (target.closest("#btnMobileMenu")) {
+        document.querySelector(".sidebar")?.classList.toggle("is-open");
+        return;
+      }
       const nav = target.closest(".nav-btn");
       if (nav) showSection(nav.dataset.section);
 
